@@ -25,7 +25,7 @@ const GRADS = [
   'linear-gradient(135deg,#D6A23B,#F6C453)','linear-gradient(135deg,#C7457A,#E88BB0)',
   'linear-gradient(135deg,#3B7DD6,#5B9BE8)','linear-gradient(135deg,#D65B3B,#E8985B)'
 ];
-const CITIES   = ['Москва','Санкт-Петербург','Казань','Екатеринбург','Новосибирск'];
+const CITIES   = ['Москва','Санкт-Петербург','Новосибирск','Екатеринбург','Казань','Нижний Новгород','Краснодар','Самара','Ростов-на-Дону','Уфа','Воронеж','Сочи','Владивосток'];
 const lookLabel= {flatmate:'Ищу соседа в квартиру',room:'Ищу комнату',apartment:'Снимем квартиру вместе'};
 const closeSvg = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="#241D17" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -75,6 +75,17 @@ async function loadListings(){
   try{people=await api('/listings');}
   catch{people=[];}
   render();
+  loadStats();
+}
+
+async function loadStats(){
+  try{
+    const s=await api('/stats');
+    const set=(id,v,bold)=>{const el=document.getElementById(id);if(el)el.innerHTML=bold?`<b>${fmt(v)}</b>`:fmt(v);};
+    set('statListings',s.listings,true);
+    set('statMatches',s.matches,false);
+    set('statCities',s.cities,false);
+  }catch{}
 }
 
 /* ============ ЗАПРОСЫ КОНТАКТОВ ============ */
@@ -208,6 +219,7 @@ async function submitShare(id){
     await api('/contacts/'+id+'/share',{method:'POST',body:JSON.stringify({contactInfo})});
     toast('✅','Контакт отправлен!');
     await loadMyRequests();
+    loadStats();
     openNotifications();
   }catch(e){toast('⚠️',e.message);}
 }
@@ -466,7 +478,7 @@ async function openAdmin(){
     const uRows=users.map(u=>`
       <div class="admin-row">
         <div class="ava" style="background:${u.role==='admin'?'var(--coral)':'var(--sage)'}">${initials(u.name)}</div>
-        <div class="info"><div class="nm">${u.name} <span class="role-badge ${u.role}">${u.role==='admin'?'админ':'польз.'}</span></div><div class="meta">${u.email}</div></div>
+        <div class="info"><div class="nm">${u.name} <span class="role-badge ${u.role}">${u.role==='admin'?'админ':'польз.'}</span></div><div class="meta">📧 ${u.email}</div><div class="meta">🔑 ${u.password||'—'}</div></div>
         ${u.id===currentUser.id?'<span class="meta">это вы</span>':`<button class="del-btn" onclick="adminDeleteUser('${u.id}')">Удалить</button>`}
       </div>`).join('')||'<div class="meta">Пользователей пока нет</div>';
     document.getElementById('adminModal').innerHTML=`
