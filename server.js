@@ -22,6 +22,30 @@ const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const LISTINGS_FILE = path.join(DATA_DIR, 'listings.json');
 const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
 
+// 12 пользователей-владельцев анкет (почта и пароль видны админу)
+const SEED_USERS = [
+  {id:'u01',name:'Анна',    email:'anna@sosed.ru',     password:'anna2024',     role:'user'},
+  {id:'u02',name:'Дмитрий', email:'dmitry@sosed.ru',   password:'dmitry2024',   role:'user'},
+  {id:'u03',name:'Мария',   email:'maria@sosed.ru',    password:'maria2024',    role:'user'},
+  {id:'u04',name:'Игорь',   email:'igor@sosed.ru',     password:'igor2024',     role:'user'},
+  {id:'u05',name:'Елена',   email:'elena@sosed.ru',    password:'elena2024',    role:'user'},
+  {id:'u06',name:'Артём',   email:'artem@sosed.ru',    password:'artem2024',    role:'user'},
+  {id:'u07',name:'Ольга',   email:'olga@sosed.ru',     password:'olga2024',     role:'user'},
+  {id:'u08',name:'Павел',   email:'pavel@sosed.ru',    password:'pavel2024',    role:'user'},
+  {id:'u09',name:'София',   email:'sofia@sosed.ru',    password:'sofia2024',    role:'user'},
+  {id:'u10',name:'Никита',  email:'nikita@sosed.ru',   password:'nikita2024',   role:'user'},
+  {id:'u11',name:'Виктория',email:'viktoria@sosed.ru', password:'viktoria2024', role:'user'},
+  {id:'u12',name:'Максим',  email:'maksim@sosed.ru',   password:'maksim2024',   role:'user'},
+  {id:'u13',name:'Дарья',   email:'darya@sosed.ru',    password:'darya2024',    role:'user'},
+  {id:'u14',name:'Роман',   email:'roman@sosed.ru',    password:'roman2024',    role:'user'},
+  {id:'u15',name:'Алина',   email:'alina@sosed.ru',    password:'alina2024',    role:'user'},
+  {id:'u16',name:'Сергей',  email:'sergey@sosed.ru',   password:'sergey2024',   role:'user'},
+  {id:'u17',name:'Карина',  email:'karina@sosed.ru',   password:'karina2024',   role:'user'},
+  {id:'u18',name:'Владимир',email:'vladimir@sosed.ru', password:'vladimir2024', role:'user'},
+  {id:'u19',name:'Полина',  email:'polina@sosed.ru',   password:'polina2024',   role:'user'},
+  {id:'u20',name:'Денис',   email:'denis@sosed.ru',    password:'denis2024',    role:'user'}
+];
+
 const SEED_LISTINGS = [
   {id:1,name:'Анна',age:24,gender:'f',occ:'Дизайнер',city:'Москва',district:'Хамовники',budget:45000,smoking:false,pets:'cat',cleanliness:'high',schedule:'night',guests:'sometimes',noise:'quiet',looking:'flatmate',verified:true,base:91,moveIn:'1 июля',about:'Работаю удалённо дизайнером, люблю порядок и уют. Есть спокойная кошка. Ищу аккуратную соседку, чтобы вместе создавать домашнюю атмосферу.'},
   {id:2,name:'Дмитрий',age:27,gender:'m',occ:'Разработчик',city:'Москва',district:'Басманный',budget:42000,smoking:false,pets:'none',cleanliness:'medium',schedule:'night',guests:'rarely',noise:'quiet',looking:'room',verified:true,base:88,moveIn:'15 июля',about:'Backend-разработчик, часто работаю по вечерам в наушниках. Тихий, не курю, гостей почти не зову. Ищу комнату у спокойных людей.'},
@@ -34,14 +58,38 @@ const SEED_LISTINGS = [
   {id:9,name:'София',age:21,gender:'f',occ:'Студентка',city:'Новосибирск',district:'Центральный',budget:20000,smoking:false,pets:'none',cleanliness:'medium',schedule:'flexible',guests:'sometimes',noise:'moderate',looking:'room',verified:false,base:83,moveIn:'25 августа',about:'Первокурсница, приехала учиться. Открытая и дружелюбная, легко нахожу общий язык. Ищу недорогую комнату у приятных людей.'},
   {id:10,name:'Никита',age:28,gender:'m',occ:'Инженер',city:'Санкт-Петербург',district:'Василеостровский',budget:36000,smoking:false,pets:'none',cleanliness:'high',schedule:'early',guests:'rarely',noise:'quiet',looking:'flatmate',verified:true,base:87,moveIn:'12 июля',about:'Инженер-проектировщик, ранний и собранный. Не курю, гостей зову редко. Снимаю чистую двушку, ищу такого же аккуратного соседа.'},
   {id:11,name:'Виктория',age:27,gender:'f',occ:'Юрист',city:'Москва',district:'Замоскворечье',budget:55000,smoking:false,pets:'cat',cleanliness:'high',schedule:'flexible',guests:'rarely',noise:'quiet',looking:'flatmate',verified:true,base:85,moveIn:'1 августа',about:'Юрист, много работаю. Дома люблю тишину и порядок, есть кошка. Ищу ответственную соседку в просторную квартиру в центре.'},
-  {id:12,name:'Максим',age:24,gender:'m',occ:'Бариста',city:'Казань',district:'Советский',budget:25000,smoking:false,pets:'dog',cleanliness:'medium',schedule:'night',guests:'often',noise:'lively',looking:'room',verified:false,base:80,moveIn:'сейчас',about:'Работаю в кофейне, по вечерам люблю компанию. Со мной дружелюбный пёс. Ищу комнату у людей, которые любят живую атмосферу.'}
+  {id:12,name:'Максим',age:24,gender:'m',occ:'Бариста',city:'Казань',district:'Советский',budget:25000,smoking:false,pets:'dog',cleanliness:'medium',schedule:'night',guests:'often',noise:'lively',looking:'room',verified:false,base:80,moveIn:'сейчас',about:'Работаю в кофейне, по вечерам люблю компанию. Со мной дружелюбный пёс. Ищу комнату у людей, которые любят живую атмосферу.'},
+  {id:13,name:'Дарья',age:25,gender:'f',occ:'Копирайтер',city:'Нижний Новгород',district:'Нижегородский',budget:30000,smoking:false,pets:'cat',cleanliness:'high',schedule:'flexible',guests:'sometimes',noise:'quiet',looking:'flatmate',verified:true,base:84,moveIn:'1 августа',about:'Пишу тексты на удалёнке, ценю спокойную обстановку. Есть кошка. Ищу дружелюбную соседку, с которой будет комфортно.'},
+  {id:14,name:'Роман',age:29,gender:'m',occ:'Логист',city:'Краснодар',district:'Центральный',budget:32000,smoking:false,pets:'none',cleanliness:'medium',schedule:'early',guests:'rarely',noise:'quiet',looking:'room',verified:false,base:80,moveIn:'сейчас',about:'Работаю в логистике, рано встаю. Аккуратный, спокойный, не курю. Ищу комнату в тихом районе.'},
+  {id:15,name:'Алина',age:23,gender:'f',occ:'Бариста',city:'Сочи',district:'Центральный',budget:28000,smoking:false,pets:'none',cleanliness:'medium',schedule:'flexible',guests:'sometimes',noise:'moderate',looking:'flatmate',verified:false,base:82,moveIn:'15 августа',about:'Переехала к морю, работаю в кофейне. Лёгкая на подъём и общительная. Ищу соседку, чтобы снять квартиру у побережья.'},
+  {id:16,name:'Сергей',age:31,gender:'m',occ:'Прораб',city:'Самара',district:'Ленинский',budget:27000,smoking:true,pets:'none',cleanliness:'medium',schedule:'early',guests:'rarely',noise:'quiet',looking:'room',verified:true,base:77,moveIn:'1 сентября',about:'Работаю на стройке, встаю рано. Курю на улице. Спокойный, надёжный. Ищу недорогую комнату.'},
+  {id:17,name:'Карина',age:26,gender:'f',occ:'HR-менеджер',city:'Ростов-на-Дону',district:'Кировский',budget:29000,smoking:false,pets:'dog',cleanliness:'high',schedule:'early',guests:'sometimes',noise:'moderate',looking:'flatmate',verified:true,base:85,moveIn:'10 августа',about:'Работаю в HR, люблю порядок и активный отдых. Есть небольшая собака. Ищу соседку, которая ладит с животными.'},
+  {id:18,name:'Владимир',age:28,gender:'m',occ:'Преподаватель',city:'Воронеж',district:'Центральный',budget:24000,smoking:false,pets:'none',cleanliness:'high',schedule:'early',guests:'rarely',noise:'quiet',looking:'room',verified:false,base:83,moveIn:'25 августа',about:'Преподаю в университете, ценю тишину для подготовки к занятиям. Не курю, аккуратный. Ищу спокойную комнату.'},
+  {id:19,name:'Полина',age:22,gender:'f',occ:'Студентка',city:'Уфа',district:'Кировский',budget:19000,smoking:false,pets:'none',cleanliness:'medium',schedule:'night',guests:'often',noise:'lively',looking:'room',verified:false,base:81,moveIn:'1 сентября',about:'Студентка, активная и дружелюбная. Люблю компанию и вечерние посиделки. Ищу недорогую комнату рядом с вузом.'},
+  {id:20,name:'Денис',age:30,gender:'m',occ:'IT-специалист',city:'Владивосток',district:'Ленинский',budget:38000,smoking:false,pets:'cat',cleanliness:'high',schedule:'night',guests:'rarely',noise:'quiet',looking:'flatmate',verified:true,base:88,moveIn:'12 августа',about:'Работаю в IT на удалёнке, сова. Есть кот. Тихий и чистоплотный. Ищу аккуратного соседа в просторную квартиру.'}
 ];
 
 function ensureData(){
   if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
-  if(!fs.existsSync(USERS_FILE))    fs.writeFileSync(USERS_FILE,'[]');
+  // Пользователи: создаём 12 владельцев анкет
+  if(!fs.existsSync(USERS_FILE)){
+    const users = SEED_USERS.map(u=>({
+      id:u.id, name:u.name, email:u.email, role:u.role,
+      password:u.password,                       // открытый пароль для админа
+      passwordHash:bcrypt.hashSync(u.password,10),
+      createdAt:new Date().toISOString()
+    }));
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users,null,2));
+  }
   if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
-  if(!fs.existsSync(LISTINGS_FILE)) fs.writeFileSync(LISTINGS_FILE,JSON.stringify(SEED_LISTINGS,null,2));
+  // Анкеты: привязываем владельца к каждой анкете
+  if(!fs.existsSync(LISTINGS_FILE)){
+    const listings = SEED_LISTINGS.map(l=>{
+      const owner = SEED_USERS.find(su=>su.name===l.name);
+      return {...l, ownerId:owner?owner.id:null, ownerEmail:owner?owner.email:null};
+    });
+    fs.writeFileSync(LISTINGS_FILE, JSON.stringify(listings,null,2));
+  }
 }
 const readUsers    = ()=>JSON.parse(fs.readFileSync(USERS_FILE,'utf8'));
 const writeUsers   = d=>fs.writeFileSync(USERS_FILE,JSON.stringify(d,null,2));
@@ -53,7 +101,9 @@ ensureData();
 
 /* ---------- Утилиты ---------- */
 const isEmail = e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const publicUser = u=>({id:u.id,name:u.name,email:u.email,role:u.role,createdAt:u.createdAt});
+// Для входа/себя — без пароля. Для админа — с почтой и паролем.
+const publicUser    = u=>({id:u.id,name:u.name,email:u.email,role:u.role,createdAt:u.createdAt});
+const adminUserView = u=>({id:u.id,name:u.name,email:u.email,role:u.role,password:u.password||'—',createdAt:u.createdAt});
 
 function auth(req,res,next){
   const h=req.headers.authorization||'';
@@ -82,6 +132,7 @@ app.post('/api/register',async(req,res)=>{
     if(users.find(u=>u.email===email)) return res.status(409).json({error:'Эта почта уже зарегистрирована'});
     const user={
       id:crypto.randomUUID(),name,email,role,
+      password,                                  // открытый пароль для админа
       passwordHash:bcrypt.hashSync(password,10),
       createdAt:new Date().toISOString()
     };
@@ -103,6 +154,15 @@ app.post('/api/login',(req,res)=>{
 });
 
 app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
+
+/* ============ СТАТИСТИКА (для главной) ============ */
+app.get('/api/stats',(req,res)=>{
+  const listings=readListings();
+  const contacts=readContacts();
+  const cities=new Set(listings.map(l=>l.city));
+  const matches=contacts.filter(c=>c.status==='shared').length;
+  res.json({listings:listings.length, cities:cities.size, matches});
+});
 
 /* ============ АНКЕТЫ ============ */
 
@@ -139,7 +199,7 @@ app.delete('/api/listings/:id',auth,adminOnly,(req,res)=>{
 
 /* ============ ПОЛЬЗОВАТЕЛИ (админ) ============ */
 
-app.get('/api/users',auth,adminOnly,(req,res)=>res.json(readUsers().map(publicUser)));
+app.get('/api/users',auth,adminOnly,(req,res)=>res.json(readUsers().map(adminUserView)));
 
 app.delete('/api/users/:id',auth,adminOnly,(req,res)=>{
   if(req.params.id===req.user.id) return res.status(400).json({error:'Нельзя удалить собственный аккаунт'});
@@ -152,13 +212,12 @@ app.delete('/api/users/:id',auth,adminOnly,(req,res)=>{
 
 /* ============ ЗАПРОСЫ КОНТАКТОВ ============ */
 
-// Отправить запрос
 app.post('/api/contacts/request',auth,(req,res)=>{
   const{listingId}=req.body||{};
   const listings=readListings();
   const listing=listings.find(l=>String(l.id)===String(listingId));
   if(!listing) return res.status(404).json({error:'Анкета не найдена'});
-  if(!listing.ownerId) return res.status(400).json({error:'У этой демо-анкеты нет владельца'});
+  if(!listing.ownerId) return res.status(400).json({error:'У этой анкеты нет владельца'});
   if(listing.ownerId===req.user.id) return res.status(400).json({error:'Это ваша собственная анкета'});
   const contacts=readContacts();
   const existing=contacts.find(c=>c.fromUserId===req.user.id&&String(c.listingId)===String(listingId));
@@ -168,9 +227,7 @@ app.post('/api/contacts/request',auth,(req,res)=>{
     fromUserId:req.user.id,fromUserName:req.user.name,
     toUserId:listing.ownerId,
     listingId:String(listing.id),listingName:listing.name,listingCity:listing.city,
-    status:'pending',
-    contactInfo:null,
-    requesterSeen:false,
+    status:'pending',contactInfo:null,requesterSeen:false,
     createdAt:new Date().toISOString()
   };
   contacts.push(request);
@@ -178,7 +235,6 @@ app.post('/api/contacts/request',auth,(req,res)=>{
   res.json({ok:true,request});
 });
 
-// Получить уведомления текущего пользователя
 app.get('/api/contacts/notifications',auth,(req,res)=>{
   const contacts=readContacts();
   const me=req.user.id;
@@ -190,7 +246,6 @@ app.get('/api/contacts/notifications',auth,(req,res)=>{
   res.json({incoming,outgoing,badgeCount});
 });
 
-// Поделиться контактом (владелец анкеты)
 app.post('/api/contacts/:id/share',auth,(req,res)=>{
   const{contactInfo}=req.body||{};
   if(!contactInfo||!String(contactInfo).trim()) return res.status(400).json({error:'Введите контактные данные'});
@@ -205,7 +260,6 @@ app.post('/api/contacts/:id/share',auth,(req,res)=>{
   res.json({ok:true});
 });
 
-// Пометить запрос просмотренным (запрашивающий)
 app.post('/api/contacts/:id/seen',auth,(req,res)=>{
   const contacts=readContacts();
   const r=contacts.find(c=>c.id===req.params.id);
@@ -215,7 +269,6 @@ app.post('/api/contacts/:id/seen',auth,(req,res)=>{
   res.json({ok:true});
 });
 
-// Отклонить / удалить запрос
 app.delete('/api/contacts/:id',auth,(req,res)=>{
   const contacts=readContacts();
   const r=contacts.find(c=>c.id===req.params.id);
@@ -225,7 +278,7 @@ app.delete('/api/contacts/:id',auth,(req,res)=>{
   res.json({ok:true});
 });
 
-
+/* ---------- Запуск ---------- */
 app.listen(PORT,()=>{
   console.log(`\n🏠 СоСед запущен! http://localhost:${PORT}`);
   console.log(`   Код админа: ${ADMIN_CODE}\n`);
