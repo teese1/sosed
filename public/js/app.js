@@ -383,7 +383,10 @@ async function submitForm(){
   if(!name||!age||!city||!budget){toast('⚠️','Заполните имя, возраст, город и бюджет');return;}
   const payload={name,age,city,budget,district:val('fDistrict'),gender:document.getElementById('fGender').value,
     schedule:document.getElementById('fSchedule').value,smoking:document.getElementById('fSmoking').value==='true',
-    about:val('fAbout'),looking:'flatmate',occ:'Пользователь'};
+    pets:document.getElementById('fPets').value,
+    cleanliness:document.getElementById('fCleanliness').value,
+    looking:document.getElementById('fLooking').value,
+    about:val('fAbout'),occ:'Пользователь'};
   try{
     await api('/listings',{method:'POST',body:JSON.stringify(payload)});
     toast('🎉','Анкета опубликована!');
