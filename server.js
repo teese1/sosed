@@ -69,27 +69,42 @@ const SEED_LISTINGS = [
   {id:20,name:'Денис',age:30,gender:'m',occ:'IT-специалист',city:'Владивосток',district:'Ленинский',budget:38000,smoking:false,pets:'cat',cleanliness:'high',schedule:'night',guests:'rarely',noise:'quiet',looking:'flatmate',verified:true,base:88,moveIn:'12 августа',about:'Работаю в IT на удалёнке, сова. Есть кот. Тихий и чистоплотный. Ищу аккуратного соседа в просторную квартиру.'}
 ];
 
+// Версия демо-данных. При её изменении сид-данные пересоздаются заново
+// (это решает проблему «старых» данных на хостинге после обновления кода).
+const SEED_VERSION = '2026-06-04-v2';
+const META_FILE = path.join(DATA_DIR, 'meta.json');
+
+function buildSeedUsers(){
+  return SEED_USERS.map(u=>({
+    id:u.id, name:u.name, email:u.email, role:u.role,
+    password:u.password,                       // открытый пароль для админа
+    passwordHash:bcrypt.hashSync(u.password,10),
+    createdAt:new Date().toISOString()
+  }));
+}
+function buildSeedListings(){
+  return SEED_LISTINGS.map(l=>{
+    const owner = SEED_USERS.find(su=>su.name===l.name);
+    return {...l, ownerId:owner?owner.id:null, ownerEmail:owner?owner.email:null};
+  });
+}
+
 function ensureData(){
   if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
-  // Пользователи: создаём 12 владельцев анкет
-  if(!fs.existsSync(USERS_FILE)){
-    const users = SEED_USERS.map(u=>({
-      id:u.id, name:u.name, email:u.email, role:u.role,
-      password:u.password,                       // открытый пароль для админа
-      passwordHash:bcrypt.hashSync(u.password,10),
-      createdAt:new Date().toISOString()
-    }));
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users,null,2));
+  let meta={};
+  try{ meta=JSON.parse(fs.readFileSync(META_FILE,'utf8')); }catch{}
+  // Если версия данных не совпадает — пересоздаём демо-анкеты и пользователей
+  if(meta.seedVersion!==SEED_VERSION){
+    fs.writeFileSync(USERS_FILE,    JSON.stringify(buildSeedUsers(),null,2));
+    fs.writeFileSync(LISTINGS_FILE, JSON.stringify(buildSeedListings(),null,2));
+    if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
+    fs.writeFileSync(META_FILE, JSON.stringify({seedVersion:SEED_VERSION},null,2));
+    console.log('🔄 Демо-данные обновлены до версии', SEED_VERSION);
+    return;
   }
+  if(!fs.existsSync(USERS_FILE))    fs.writeFileSync(USERS_FILE, JSON.stringify(buildSeedUsers(),null,2));
   if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
-  // Анкеты: привязываем владельца к каждой анкете
-  if(!fs.existsSync(LISTINGS_FILE)){
-    const listings = SEED_LISTINGS.map(l=>{
-      const owner = SEED_USERS.find(su=>su.name===l.name);
-      return {...l, ownerId:owner?owner.id:null, ownerEmail:owner?owner.email:null};
-    });
-    fs.writeFileSync(LISTINGS_FILE, JSON.stringify(listings,null,2));
-  }
+  if(!fs.existsSync(LISTINGS_FILE)) fs.writeFileSync(LISTINGS_FILE, JSON.stringify(buildSeedListings(),null,2));
 }
 const readUsers    = ()=>JSON.parse(fs.readFileSync(USERS_FILE,'utf8'));
 const writeUsers   = d=>fs.writeFileSync(USERS_FILE,JSON.stringify(d,null,2));
