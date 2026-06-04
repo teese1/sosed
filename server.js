@@ -1,24 +1,14 @@
-/* ============================================================
-   СоСед — серверная часть (Node.js + Express)
-   ------------------------------------------------------------
-   • Регистрация пользователей и администраторов
-   • Вход по почте и паролю (пароль высылается на e-mail)
-   • Управление анкетами (создание, удаление админом)
-   • Данные хранятся в JSON-файлах в папке data/ — без установки СУБД
-   ============================================================ */
-
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const cors    = require('cors');
+const path    = require('path');
+const fs      = require('fs');
+const crypto  = require('crypto');
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const app        = express();
+const PORT       = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'sosed-dev-secret-change-me';
 const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2026';
 
@@ -26,10 +16,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ---------- «База данных» в JSON-файлах ---------- */
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
+/* ---------- JSON «база данных» ---------- */
+const DATA_DIR      = path.join(__dirname, 'data');
+const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const LISTINGS_FILE = path.join(DATA_DIR, 'listings.json');
+const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
 
 const SEED_LISTINGS = [
   {id:1,name:'Анна',age:24,gender:'f',occ:'Дизайнер',city:'Москва',district:'Хамовники',budget:45000,smoking:false,pets:'cat',cleanliness:'high',schedule:'night',guests:'sometimes',noise:'quiet',looking:'flatmate',verified:true,base:91,moveIn:'1 июля',about:'Работаю удалённо дизайнером, люблю порядок и уют. Есть спокойная кошка. Ищу аккуратную соседку, чтобы вместе создавать домашнюю атмосферу.'},
@@ -47,193 +38,195 @@ const SEED_LISTINGS = [
 ];
 
 function ensureData(){
-  if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, {recursive:true});
-  if(!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
-  if(!fs.existsSync(LISTINGS_FILE)) fs.writeFileSync(LISTINGS_FILE, JSON.stringify(SEED_LISTINGS, null, 2));
+  if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
+  if(!fs.existsSync(USERS_FILE))    fs.writeFileSync(USERS_FILE,'[]');
+  if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
+  if(!fs.existsSync(LISTINGS_FILE)) fs.writeFileSync(LISTINGS_FILE,JSON.stringify(SEED_LISTINGS,null,2));
 }
-const readUsers = () => JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-const writeUsers = d => fs.writeFileSync(USERS_FILE, JSON.stringify(d, null, 2));
-const readListings = () => JSON.parse(fs.readFileSync(LISTINGS_FILE, 'utf8'));
-const writeListings = d => fs.writeFileSync(LISTINGS_FILE, JSON.stringify(d, null, 2));
+const readUsers    = ()=>JSON.parse(fs.readFileSync(USERS_FILE,'utf8'));
+const writeUsers   = d=>fs.writeFileSync(USERS_FILE,JSON.stringify(d,null,2));
+const readListings = ()=>JSON.parse(fs.readFileSync(LISTINGS_FILE,'utf8'));
+const writeListings= d=>fs.writeFileSync(LISTINGS_FILE,JSON.stringify(d,null,2));
+const readContacts = ()=>JSON.parse(fs.readFileSync(CONTACTS_FILE,'utf8'));
+const writeContacts= d=>fs.writeFileSync(CONTACTS_FILE,JSON.stringify(d,null,2));
 ensureData();
 
-/* ---------- Отправка почты ---------- */
-let transporter = null;
-if(process.env.SMTP_USER && process.env.SMTP_PASS){
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-  });
-  console.log('📧 Почта настроена: ' + process.env.SMTP_USER);
-} else {
-  console.log('📭 Почта НЕ настроена — пароли будут выводиться в консоль и на экран.');
-}
-
-async function sendPasswordEmail(to, name, password){
-  if(!transporter) return false;
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject: 'Ваш пароль для входа в СоСед',
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #eee;border-radius:12px">
-        <h2 style="color:#EE5230;margin:0 0 16px">🏠 СоСед</h2>
-        <p>Здравствуйте, <b>${name}</b>!</p>
-        <p>Вы зарегистрировались в сервисе поиска соседей <b>СоСед</b>. Ваш пароль для входа:</p>
-        <p style="font-size:24px;font-weight:bold;letter-spacing:3px;background:#FBF6EE;padding:16px;border-radius:10px;text-align:center;margin:18px 0">${password}</p>
-        <p>Войдите, используя вашу электронную почту и этот пароль. Никому не сообщайте его.</p>
-        <p style="color:#999;font-size:13px;margin-top:24px">Это автоматическое письмо, отвечать на него не нужно.</p>
-      </div>`
-  });
-  return true;
-}
-
 /* ---------- Утилиты ---------- */
-function genPassword(len = 10){
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  const bytes = crypto.randomBytes(len);
-  let p = '';
-  for(let i = 0; i < len; i++) p += chars[bytes[i] % chars.length];
-  return p;
-}
-const isEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const publicUser = u => ({ id: u.id, name: u.name, email: u.email, role: u.role, createdAt: u.createdAt });
+const isEmail = e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const publicUser = u=>({id:u.id,name:u.name,email:u.email,role:u.role,createdAt:u.createdAt});
 
-function auth(req, res, next){
-  const h = req.headers.authorization || '';
-  const tk = h.startsWith('Bearer ') ? h.slice(7) : null;
-  if(!tk) return res.status(401).json({ error: 'Требуется вход в аккаунт' });
-  try { req.user = jwt.verify(tk, JWT_SECRET); next(); }
-  catch { return res.status(401).json({ error: 'Сессия истекла, войдите снова' }); }
+function auth(req,res,next){
+  const h=req.headers.authorization||'';
+  const tk=h.startsWith('Bearer ')?h.slice(7):null;
+  if(!tk) return res.status(401).json({error:'Требуется вход в аккаунт'});
+  try{req.user=jwt.verify(tk,JWT_SECRET);next();}
+  catch{return res.status(401).json({error:'Сессия истекла, войдите снова'});}
 }
-function adminOnly(req, res, next){
-  if(!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Доступ только для администратора' });
+function adminOnly(req,res,next){
+  if(!req.user||req.user.role!=='admin') return res.status(403).json({error:'Доступ только для администратора'});
   next();
 }
 
-/* ============ МАРШРУТЫ: АВТОРИЗАЦИЯ ============ */
+/* ============ АВТОРИЗАЦИЯ ============ */
 
-// Регистрация (пароль генерируется и отправляется на почту)
-app.post('/api/register', async (req, res) => {
-  try {
-    let { name, email, role, adminCode } = req.body || {};
-    name = (name || '').trim();
-    email = (email || '').trim().toLowerCase();
-    role = role === 'admin' ? 'admin' : 'user';
-
-    if(!name || !isEmail(email)) return res.status(400).json({ error: 'Укажите имя и корректную почту' });
-    if(role === 'admin' && adminCode !== ADMIN_CODE) return res.status(403).json({ error: 'Неверный код администратора' });
-
-    const users = readUsers();
-    if(users.find(u => u.email === email)) return res.status(409).json({ error: 'Эта почта уже зарегистрирована' });
-
-    const password = genPassword();
-    const user = {
-      id: crypto.randomUUID(),
-      name, email, role,
-      passwordHash: bcrypt.hashSync(password, 10),
-      createdAt: new Date().toISOString()
+app.post('/api/register',async(req,res)=>{
+  try{
+    let{name,email,password,role,adminCode}=req.body||{};
+    name=(name||'').trim();
+    email=(email||'').trim().toLowerCase();
+    role=role==='admin'?'admin':'user';
+    if(!name||!isEmail(email)) return res.status(400).json({error:'Укажите имя и корректную почту'});
+    if(!password||password.length<6) return res.status(400).json({error:'Пароль должен быть не менее 6 символов'});
+    if(role==='admin'&&adminCode!==ADMIN_CODE) return res.status(403).json({error:'Неверный код администратора'});
+    const users=readUsers();
+    if(users.find(u=>u.email===email)) return res.status(409).json({error:'Эта почта уже зарегистрирована'});
+    const user={
+      id:crypto.randomUUID(),name,email,role,
+      passwordHash:bcrypt.hashSync(password,10),
+      createdAt:new Date().toISOString()
     };
     users.push(user);
     writeUsers(users);
-
-    let emailSent = false;
-    try { emailSent = await sendPasswordEmail(email, name, password); }
-    catch(e){ console.error('Ошибка отправки письма:', e.message); }
-    if(!emailSent) console.log(`\n🔑 Пароль для ${email}: ${password}\n`);
-
-    res.json({
-      ok: true,
-      emailSent,
-      role,
-      message: emailSent ? 'Пароль отправлен на почту' : 'Почта не настроена — пароль показан на экране',
-      devPassword: emailSent ? undefined : password
-    });
-  } catch(e){ console.error(e); res.status(500).json({ error: 'Ошибка сервера' }); }
+    res.json({ok:true,role,message:'Регистрация успешна'});
+  }catch(e){console.error(e);res.status(500).json({error:'Ошибка сервера'});}
 });
 
-// Вход
-app.post('/api/login', (req, res) => {
-  let { email, password } = req.body || {};
-  email = (email || '').trim().toLowerCase();
-  const users = readUsers();
-  const user = users.find(u => u.email === email);
-  if(!user || !bcrypt.compareSync(password || '', user.passwordHash)){
-    return res.status(401).json({ error: 'Неверная почта или пароль' });
-  }
-  const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: publicUser(user) });
+app.post('/api/login',(req,res)=>{
+  let{email,password}=req.body||{};
+  email=(email||'').trim().toLowerCase();
+  const users=readUsers();
+  const user=users.find(u=>u.email===email);
+  if(!user||!bcrypt.compareSync(password||'',user.passwordHash))
+    return res.status(401).json({error:'Неверная почта или пароль'});
+  const token=jwt.sign({id:user.id,name:user.name,email:user.email,role:user.role},JWT_SECRET,{expiresIn:'7d'});
+  res.json({token,user:publicUser(user)});
 });
 
-// Текущий пользователь
-app.get('/api/me', auth, (req, res) => res.json({ user: req.user }));
+app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
 
-/* ============ МАРШРУТЫ: АНКЕТЫ ============ */
+/* ============ АНКЕТЫ ============ */
 
-// Все анкеты (публично)
-app.get('/api/listings', (req, res) => res.json(readListings()));
+app.get('/api/listings',(req,res)=>res.json(readListings()));
 
-// Создать анкету (нужен вход)
-app.post('/api/listings', auth, (req, res) => {
-  const b = req.body || {};
-  if(!b.name || !b.age || !b.city || !b.budget) return res.status(400).json({ error: 'Заполните имя, возраст, город и бюджет' });
-  const listings = readListings();
-  const listing = {
-    id: Date.now(),
-    name: String(b.name).trim(),
-    age: Number(b.age),
-    gender: b.gender === 'f' ? 'f' : 'm',
-    occ: b.occ || 'Пользователь',
-    city: b.city,
-    district: (b.district || 'Центр').trim() || 'Центр',
-    budget: Number(b.budget),
-    smoking: !!b.smoking,
-    pets: b.pets || 'none',
-    cleanliness: b.cleanliness || 'medium',
-    schedule: b.schedule || 'flexible',
-    guests: b.guests || 'sometimes',
-    noise: b.noise || 'moderate',
-    looking: b.looking || 'flatmate',
-    verified: false,
-    base: 82,
-    moveIn: b.moveIn || 'сейчас',
-    about: (b.about || '').trim() || 'Анкета создана пользователем.',
-    ownerId: req.user.id,
-    ownerEmail: req.user.email
+app.post('/api/listings',auth,(req,res)=>{
+  const b=req.body||{};
+  if(!b.name||!b.age||!b.city||!b.budget) return res.status(400).json({error:'Заполните имя, возраст, город и бюджет'});
+  const listings=readListings();
+  const listing={
+    id:Date.now(),name:String(b.name).trim(),age:Number(b.age),
+    gender:b.gender==='f'?'f':'m',occ:b.occ||'Пользователь',
+    city:b.city,district:(b.district||'Центр').trim()||'Центр',
+    budget:Number(b.budget),smoking:!!b.smoking,pets:b.pets||'none',
+    cleanliness:b.cleanliness||'medium',schedule:b.schedule||'flexible',
+    guests:b.guests||'sometimes',noise:b.noise||'moderate',
+    looking:b.looking||'flatmate',verified:false,base:82,
+    moveIn:b.moveIn||'сейчас',
+    about:(b.about||'').trim()||'Анкета создана пользователем.',
+    ownerId:req.user.id,ownerEmail:req.user.email
   };
   listings.unshift(listing);
   writeListings(listings);
-  res.json({ ok: true, listing });
+  res.json({ok:true,listing});
 });
 
-// Удалить анкету (только админ)
-app.delete('/api/listings/:id', auth, adminOnly, (req, res) => {
-  const listings = readListings();
-  const next = listings.filter(l => String(l.id) !== String(req.params.id));
-  if(next.length === listings.length) return res.status(404).json({ error: 'Анкета не найдена' });
+app.delete('/api/listings/:id',auth,adminOnly,(req,res)=>{
+  const listings=readListings();
+  const next=listings.filter(l=>String(l.id)!==String(req.params.id));
+  if(next.length===listings.length) return res.status(404).json({error:'Анкета не найдена'});
   writeListings(next);
-  res.json({ ok: true });
+  res.json({ok:true});
 });
 
-/* ============ МАРШРУТЫ: ПОЛЬЗОВАТЕЛИ (админ) ============ */
+/* ============ ПОЛЬЗОВАТЕЛИ (админ) ============ */
 
-app.get('/api/users', auth, adminOnly, (req, res) => res.json(readUsers().map(publicUser)));
+app.get('/api/users',auth,adminOnly,(req,res)=>res.json(readUsers().map(publicUser)));
 
-app.delete('/api/users/:id', auth, adminOnly, (req, res) => {
-  if(req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя удалить собственный аккаунт' });
-  const users = readUsers();
-  const next = users.filter(u => u.id !== req.params.id);
-  if(next.length === users.length) return res.status(404).json({ error: 'Пользователь не найден' });
+app.delete('/api/users/:id',auth,adminOnly,(req,res)=>{
+  if(req.params.id===req.user.id) return res.status(400).json({error:'Нельзя удалить собственный аккаунт'});
+  const users=readUsers();
+  const next=users.filter(u=>u.id!==req.params.id);
+  if(next.length===users.length) return res.status(404).json({error:'Пользователь не найден'});
   writeUsers(next);
-  res.json({ ok: true });
+  res.json({ok:true});
 });
 
-/* ---------- Запуск ---------- */
-app.listen(PORT, () => {
-  console.log(`\n🏠 СоСед запущен!`);
-  console.log(`   Локально:        http://localhost:${PORT}`);
-  console.log(`   Код админа:      ${ADMIN_CODE}`);
-  console.log(`   (изменить можно в файле .env)\n`);
+/* ============ ЗАПРОСЫ КОНТАКТОВ ============ */
+
+// Отправить запрос
+app.post('/api/contacts/request',auth,(req,res)=>{
+  const{listingId}=req.body||{};
+  const listings=readListings();
+  const listing=listings.find(l=>String(l.id)===String(listingId));
+  if(!listing) return res.status(404).json({error:'Анкета не найдена'});
+  if(!listing.ownerId) return res.status(400).json({error:'У этой демо-анкеты нет владельца'});
+  if(listing.ownerId===req.user.id) return res.status(400).json({error:'Это ваша собственная анкета'});
+  const contacts=readContacts();
+  const existing=contacts.find(c=>c.fromUserId===req.user.id&&String(c.listingId)===String(listingId));
+  if(existing) return res.json({ok:true,request:existing,alreadyExists:true});
+  const request={
+    id:crypto.randomUUID(),
+    fromUserId:req.user.id,fromUserName:req.user.name,
+    toUserId:listing.ownerId,
+    listingId:String(listing.id),listingName:listing.name,listingCity:listing.city,
+    status:'pending',
+    contactInfo:null,
+    requesterSeen:false,
+    createdAt:new Date().toISOString()
+  };
+  contacts.push(request);
+  writeContacts(contacts);
+  res.json({ok:true,request});
+});
+
+// Получить уведомления текущего пользователя
+app.get('/api/contacts/notifications',auth,(req,res)=>{
+  const contacts=readContacts();
+  const me=req.user.id;
+  const incoming=contacts.filter(c=>c.toUserId===me);
+  const outgoing=contacts.filter(c=>c.fromUserId===me);
+  const badgeCount=
+    incoming.filter(c=>c.status==='pending').length+
+    outgoing.filter(c=>c.status==='shared'&&!c.requesterSeen).length;
+  res.json({incoming,outgoing,badgeCount});
+});
+
+// Поделиться контактом (владелец анкеты)
+app.post('/api/contacts/:id/share',auth,(req,res)=>{
+  const{contactInfo}=req.body||{};
+  if(!contactInfo||!String(contactInfo).trim()) return res.status(400).json({error:'Введите контактные данные'});
+  const contacts=readContacts();
+  const r=contacts.find(c=>c.id===req.params.id);
+  if(!r) return res.status(404).json({error:'Запрос не найден'});
+  if(r.toUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
+  r.status='shared';
+  r.contactInfo=String(contactInfo).trim();
+  r.sharedAt=new Date().toISOString();
+  writeContacts(contacts);
+  res.json({ok:true});
+});
+
+// Пометить запрос просмотренным (запрашивающий)
+app.post('/api/contacts/:id/seen',auth,(req,res)=>{
+  const contacts=readContacts();
+  const r=contacts.find(c=>c.id===req.params.id);
+  if(!r) return res.status(404).json({error:'Запрос не найден'});
+  if(r.fromUserId===req.user.id) r.requesterSeen=true;
+  writeContacts(contacts);
+  res.json({ok:true});
+});
+
+// Отклонить / удалить запрос
+app.delete('/api/contacts/:id',auth,(req,res)=>{
+  const contacts=readContacts();
+  const r=contacts.find(c=>c.id===req.params.id);
+  if(!r) return res.status(404).json({error:'Запрос не найден'});
+  if(r.toUserId!==req.user.id&&r.fromUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
+  writeContacts(contacts.filter(c=>c.id!==req.params.id));
+  res.json({ok:true});
+});
+
+
+app.listen(PORT,()=>{
+  console.log(`\n🏠 СоСед запущен! http://localhost:${PORT}`);
+  console.log(`   Код админа: ${ADMIN_CODE}\n`);
 });
