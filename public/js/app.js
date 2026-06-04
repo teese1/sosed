@@ -373,8 +373,44 @@ const io = new IntersectionObserver(es => {
   es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
 }, {threshold:.12});
 
+/* ============ МОБИЛЬНЫЙ ТОГГЛ ФИЛЬТРОВ ============ */
+function initMobileFilters(){
+  const sidebar = document.getElementById('filters');
+  if(!sidebar) return;
+
+  // Оборачиваем содержимое фильтров в .filters-inner
+  const inner = document.createElement('div');
+  inner.className = 'filters-inner';
+  while(sidebar.firstChild) inner.appendChild(sidebar.firstChild);
+  sidebar.appendChild(inner);
+
+  // Кнопка показать/скрыть фильтры
+  const btn = document.createElement('button');
+  btn.className = 'filter-mob-toggle';
+  btn.innerHTML = '<span>🎛️ Фильтры</span><span class="arr">▼</span>';
+  sidebar.insertBefore(btn, inner);
+
+  // Состояние (на мобиле закрыто по умолчанию)
+  let open = window.innerWidth >= 981;
+  function update(){
+    inner.style.maxHeight = open ? inner.scrollHeight + 'px' : '0';
+    inner.classList.toggle('hidden', !open);
+    btn.classList.toggle('open', open);
+  }
+  update();
+
+  btn.addEventListener('click', () => { open = !open; update(); });
+
+  // При ресайзе пересчитать
+  window.addEventListener('resize', () => {
+    if(window.innerWidth >= 981){ open = true; }
+    update();
+  });
+}
+
 /* ============ ИНИЦИАЛИЗАЦИЯ ============ */
 renderNav();
 buildCities();
 loadListings();
+initMobileFilters();
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
