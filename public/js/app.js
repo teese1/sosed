@@ -10,6 +10,7 @@ const val = id => document.getElementById(id).value.trim();
 function authHeaders(){ return token ? {'Authorization':'Bearer '+token} : {}; }
 async function api(path, opts={}){
   const res = await fetch(API+path,{
+    cache:'no-store',
     ...opts,
     headers:{'Content-Type':'application/json',...authHeaders(),...(opts.headers||{})}
   });
@@ -52,11 +53,12 @@ function extraChips(p){
 
 /* ============ СОСТОЯНИЕ / ФИЛЬТРЫ ============ */
 let people = [];
-let state  = {city:'',budget:70000,gender:'any',smoking:'any',pets:'any',cleanliness:'any',schedule:'any'};
+const BUDGET_MAX=150000;
+let state  = {city:'',budget:BUDGET_MAX,gender:'any',smoking:'any',pets:'any',cleanliness:'any',schedule:'any'};
 
 function passesHard(p){
   if(state.city&&p.city!==state.city) return false;
-  if(Number(p.budget)>state.budget) return false;
+  if(state.budget<BUDGET_MAX && Number(p.budget)>state.budget) return false;
   if(state.gender!=='any'&&p.gender!==state.gender) return false;
   return true;
 }
@@ -257,7 +259,7 @@ function render(){
     const ch=chipsOf(p).slice(0,4).map(c=>`<span class="tag">${c.e} ${c.t}</span>`).join('');
     const ver=p.verified?`<svg class="verified" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 1.8 3 .2.9 2.9 2.3 1.9-1 2.8 1 2.8-2.3 1.9-.9 2.9-3 .2L12 22l-2.4-1.8-3-.2-.9-2.9L3.4 15l1-2.8-1-2.8 2.3-1.9.9-2.9 3-.2z" fill="#2F7D5B"/><path d="m8.5 12 2.3 2.3 4.7-4.7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`:'';
     const del=isAdmin?`<button class="c-del" title="Удалить" onclick="event.stopPropagation();adminDeleteListing('${p.id}')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M9 7V5h6v2m-1 0v12H10V7" stroke="#CF3D1C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`:'';
-    return `<div class="card ${isAdmin?'admin':''}" onclick="openModal('${p.id}')">
+    return `<div class="card ${isAdmin?'admin':''}" data-id="${p.id}" onclick="openModal('${p.id}')">
       ${del}
       <div class="c-match"><span class="d"></span>${p.score}% совпадение</div>
       <span class="c-looking">📍 ${lookLabel[p.looking]||'Ищет соседа'}</span>
@@ -347,10 +349,10 @@ range.addEventListener('input',()=>{
   render();
 });
 function resetFilters(){
-  state={city:'',budget:70000,gender:'any',smoking:'any',pets:'any',cleanliness:'any',schedule:'any'};
+  state={city:'',budget:BUDGET_MAX,gender:'any',smoking:'any',pets:'any',cleanliness:'any',schedule:'any'};
   document.querySelectorAll('.filters .seg').forEach(seg=>seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.val==='any')));
-  range.value=70000;
-  document.getElementById('budgetVal').textContent='70 000 ₽';
+  range.value=BUDGET_MAX;
+  document.getElementById('budgetVal').textContent=fmt(BUDGET_MAX)+' ₽';
   document.querySelectorAll('.city-chip').forEach(c=>c.classList.toggle('active',c.dataset.city===''));
   render();
 }
@@ -388,11 +390,23 @@ async function submitForm(){
     looking:document.getElementById('fLooking').value,
     about:val('fAbout'),occ:'Пользователь'};
   try{
-    await api('/listings',{method:'POST',body:JSON.stringify(payload)});
+    const res=await api('/listings',{method:'POST',body:JSON.stringify(payload)});
+    const newId=res.listing&&res.listing.id;
     toast('🎉','Анкета опубликована!');
-    await loadListings();resetFilters();
+    resetFilters();
+    await loadListings();
     document.getElementById('search').scrollIntoView({behavior:'smooth'});
     ['fName','fAge','fCity','fDistrict','fBudget','fAbout'].forEach(id=>document.getElementById(id).value='');
+    setTimeout(()=>{
+      const el=document.querySelector(`.card[data-id="${newId}"]`);
+      if(el){
+        el.scrollIntoView({behavior:'smooth',block:'center'});
+        el.style.transition='box-shadow .3s, transform .3s';
+        el.style.boxShadow='0 0 0 3px var(--coral), 0 12px 32px rgba(238,82,48,.3)';
+        el.style.transform='translateY(-4px)';
+        setTimeout(()=>{el.style.boxShadow='';el.style.transform='';},2600);
+      }
+    },450);
   }catch(e){toast('⚠️',e.message);}
 }
 
