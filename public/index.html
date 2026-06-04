@@ -40,12 +40,7 @@
         <div class="sb-field">
           <label>Город</label>
           <select id="heroCity">
-            <option value="">Любой город</option>
-            <option>Москва</option>
-            <option>Санкт-Петербург</option>
-            <option>Казань</option>
-            <option>Екатеринбург</option>
-            <option>Новосибирск</option>
+            <option value="">Любой город</option><option>Москва</option><option>Санкт-Петербург</option><option>Новосибирск</option><option>Екатеринбург</option><option>Казань</option><option>Нижний Новгород</option><option>Краснодар</option><option>Самара</option><option>Ростов-на-Дону</option><option>Уфа</option><option>Воронеж</option><option>Сочи</option><option>Владивосток</option>
           </select>
         </div>
         <div class="sb-field">
@@ -64,9 +59,9 @@
         </button>
       </div>
       <div class="stats anim a5">
-        <div class="stat"><div class="num"><b>12 400</b>+</div><div class="lab">активных анкет</div></div>
-        <div class="stat"><div class="num">3 870</div><div class="lab">нашли соседа</div></div>
-        <div class="stat"><div class="num">47</div><div class="lab">городов России</div></div>
+        <div class="stat"><div class="num" id="statListings"><b>12</b></div><div class="lab">активных анкет</div></div>
+        <div class="stat"><div class="num" id="statMatches">0</div><div class="lab">нашли соседа</div></div>
+        <div class="stat"><div class="num" id="statCities">5</div><div class="lab">городов России</div></div>
       </div>
     </div>
 
@@ -254,8 +249,7 @@
             <div class="field">
               <label>Город</label>
               <select id="fCity">
-                <option value="">Выберите город</option>
-                <option>Москва</option><option>Санкт-Петербург</option><option>Казань</option><option>Екатеринбург</option><option>Новосибирск</option>
+                <option value="">Выберите город</option><option>Москва</option><option>Санкт-Петербург</option><option>Новосибирск</option><option>Екатеринбург</option><option>Казань</option><option>Нижний Новгород</option><option>Краснодар</option><option>Самара</option><option>Ростов-на-Дону</option><option>Уфа</option><option>Воронеж</option><option>Сочи</option><option>Владивосток</option>
               </select>
             </div>
             <div class="field"><label>Район</label><input id="fDistrict" type="text" placeholder="Например, Центр"></div>
