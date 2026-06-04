@@ -14,6 +14,12 @@ const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2026';
 
 app.use(cors());
 app.use(express.json());
+// Запрет кэширования: клиент всегда получает свежие данные API и свежий код
+app.use((req,res,next)=>{
+  if(req.path.startsWith('/api/')) res.set('Cache-Control','no-store');
+  else res.set('Cache-Control','no-cache');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ---------- JSON «база данных» ---------- */
