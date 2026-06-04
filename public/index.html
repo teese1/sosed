@@ -357,11 +357,22 @@
         <div class="seg role-seg"><button class="on" data-role="user" onclick="setRole('user',this)">Пользователь</button><button data-role="admin" onclick="setRole('admin',this)">Администратор</button></div>
       </div>
       <div class="field" id="adminCodeField" style="display:none"><label>Код администратора</label><input id="rgCode" type="text" placeholder="Секретный код"></div>
+      <div class="field"><label>Пароль</label><input id="rgPass" type="password" placeholder="Минимум 6 символов"></div>
+      <div class="field"><label>Повторите пароль</label><input id="rgPass2" type="password" placeholder="Повторите пароль"></div>
       <button class="btn btn-dark btn-block" onclick="doRegister()">Зарегистрироваться</button>
-      <div class="auth-note">ð Пароль будет отправлен на указанную почту</div>
-      <div class="dev-pass" id="devPass" style="display:none"></div>
+      <div class="auth-note">🔒 Пароль хранится в зашифрованном виде</div>
     </div>
   </div>
+</div>
+
+<!-- ===== NOTIFICATIONS MODAL ===== -->
+<div class="overlay" id="notifOverlay" onclick="if(event.target===this)closeNotif()">
+  <div class="modal notif-modal" id="notifModal"></div>
+</div>
+
+<!-- ===== SHARE CONTACT MODAL ===== -->
+<div class="overlay" id="shareOverlay" onclick="if(event.target===this)closeShare()">
+  <div class="modal share-modal" id="shareModal"></div>
 </div>
 
 <!-- ===== ADMIN MODAL ===== -->
