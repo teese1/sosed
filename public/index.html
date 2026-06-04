@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СоСед — сервис поиска соседей по квартире</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="wrap nav">
+    <a href="#" class="logo">
+      <span class="mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9h14v-9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="13" width="4" height="6" rx="1" stroke="#EE5230" stroke-width="2"/></svg>
+      </span>
+      Со<b>Сед</b>
+    </a>
+    <nav class="nav-links">
+      <a href="#search">Поиск соседей</a>
+      <a href="#how">Как это работает</a>
+      <a href="#post">Безопасность</a>
+    </nav>
+    <div class="nav-cta" id="navAuth"></div>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="pill-tag anim a1"><span class="dot"></span>Умный подбор по совместимости</span>
+      <h1 class="anim a2">Найдите соседа, с которым <span class="hl">уютно<svg viewBox="0 0 200 14" preserveAspectRatio="none"><path d="M2 9C40 3 160 3 198 8" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/></svg></span> жить под одной крышей</h1>
+      <p class="lead anim a3">Сервис подбирает соседей по комнате или квартире не просто по бюджету, а по образу жизни, привычкам и характеру. Меньше неловкости — больше совпадений.</p>
+      <div class="searchbox anim a4">
+        <div class="sb-field">
+          <label>Город</label>
+          <select id="heroCity">
+            <option value="">Любой город</option>
+            <option>Москва</option>
+            <option>Санкт-Петербург</option>
+            <option>Казань</option>
+            <option>Екатеринбург</option>
+            <option>Новосибирск</option>
+          </select>
+        </div>
+        <div class="sb-field">
+          <label>Бюджет до</label>
+          <select id="heroBudget">
+            <option value="70000">Не важно</option>
+            <option value="25000">25 000 ₽</option>
+            <option value="35000">35 000 ₽</option>
+            <option value="45000">45 000 ₽</option>
+            <option value="60000">60 000 ₽</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="heroSearch()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#fff" stroke-width="2.4"/><path d="m20 20-3-3" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+          Найти
+        </button>
+      </div>
+      <div class="stats anim a5">
+        <div class="stat"><div class="num"><b>12 400</b>+</div><div class="lab">активных анкет</div></div>
+        <div class="stat"><div class="num">3 870</div><div class="lab">нашли соседа</div></div>
+        <div class="stat"><div class="num">47</div><div class="lab">городов России</div></div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="blob"></div>
+      <div class="float-card c1">
+        <div class="fc-head">
+          <div class="fc-ava" style="background:linear-gradient(135deg,#EE5230,#F6943B)">АК</div>
+          <div><div class="fc-name">Анна, 24</div><div class="fc-meta">Дизайнер · Москва</div></div>
+          <div class="fc-match"><div class="pc">94%</div><div class="pl">совпадение</div></div>
+        </div>
+        <div class="fc-tags"><span class="fc-tag">🚭 Не курит</span><span class="fc-tag">🐱 Кошка</span><span class="fc-tag">✨ Чистюля</span></div>
+      </div>
+      <div class="float-card c2">
+        <div class="fc-head">
+          <div class="fc-ava" style="background:linear-gradient(135deg,#2F7D5B,#5BB089)">ДВ</div>
+          <div><div class="fc-name">Дмитрий, 27</div><div class="fc-meta">Разработчик · Москва</div></div>
+          <div class="fc-match"><div class="pc">88%</div><div class="pl">совпадение</div></div>
+        </div>
+        <div class="fc-tags"><span class="fc-tag">🌙 Сова</span><span class="fc-tag">🤫 Тихо</span></div>
+      </div>
+      <div class="float-card c3">
+        <div class="fc-head">
+          <div class="fc-ava" style="background:linear-gradient(135deg,#7A5BD6,#B08BE8)">МС</div>
+          <div><div class="fc-name">Мария, 22</div><div class="fc-meta">Студентка · СПб</div></div>
+          <div class="fc-match"><div class="pc">91%</div><div class="pl">совпадение</div></div>
+        </div>
+        <div class="fc-tags"><span class="fc-tag">🌅 Жаворонок</span><span class="fc-tag">✨ Чистюля</span></div>
+      </div>
+      <div class="badge-spark"><span class="em">✨</span> Совпадение найдено!</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SEARCH SECTION ===== -->
+<section class="search-sec" id="search">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">Каталог анкет</span>
+      <h2>Подберите соседа под свой образ жизни</h2>
+      <p>Настройте фильтры слева — сервис мгновенно пересчитает совместимость и покажет самых подходящих людей первыми.</p>
+    </div>
+
+    <div class="cities reveal" id="cityChips"></div>
+
+    <div class="layout">
+      <!-- FILTERS -->
+      <aside class="filters reveal" id="filters">
+        <h3>Фильтры</h3>
+        <div class="sub">Подбор обновляется автоматически</div>
+
+        <div class="fgroup">
+          <label>Кого вы ищете</label>
+          <div class="seg" data-filter="gender">
+            <button class="on" data-val="any">Любой</button>
+            <button data-val="m">Парень</button>
+            <button data-val="f">Девушка</button>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <label>Бюджет до <span class="range-val" id="budgetVal">70 000 ₽</span></label>
+          <input type="range" id="budgetRange" min="15000" max="70000" step="1000" value="70000">
+        </div>
+
+        <div class="fgroup">
+          <label>Отношение к курению</label>
+          <div class="seg" data-filter="smoking">
+            <button class="on" data-val="any">Любое</button>
+            <button data-val="no">Не курит</button>
+            <button data-val="yes">Курит</button>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <label>Домашние животные</label>
+          <div class="seg" data-filter="pets">
+            <button class="on" data-val="any">Любые</button>
+            <button data-val="ok">Не против</button>
+            <button data-val="none">Без животных</button>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <label>Чистоплотность</label>
+          <div class="seg" data-filter="cleanliness">
+            <button class="on" data-val="any">Любая</button>
+            <button data-val="high">Высокая</button>
+            <button data-val="medium">Средняя</button>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <label>Режим дня</label>
+          <div class="seg" data-filter="schedule">
+            <button class="on" data-val="any">Любой</button>
+            <button data-val="early">Жаворонок</button>
+            <button data-val="night">Сова</button>
+          </div>
+        </div>
+
+        <button class="reset-btn" onclick="resetFilters()">Сбросить все фильтры</button>
+      </aside>
+
+      <!-- RESULTS -->
+      <div class="results">
+        <div class="results-head">
+          <div class="results-count">Найдено <b id="count">0</b> <span id="countWord">анкет</span></div>
+          <div class="sort">
+            Сортировать:
+            <select id="sortSel" onchange="render()">
+              <option value="match">По совпадению</option>
+              <option value="budget-asc">Бюджет: дешевле</option>
+              <option value="budget-desc">Бюджет: дороже</option>
+              <option value="age-asc">По возрасту</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">Как это работает</span>
+      <h2>Четыре шага до удачного соседства</h2>
+      <p>Никаких бесконечных созвонов с незнакомцами. Сервис берёт совместимость на себя.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="nstep">01</div>
+        <div class="ico">📝</div>
+        <h4>Создайте анкету</h4>
+        <p>Расскажите о себе, бюджете и привычках. Чем подробнее — тем точнее подбор соседей.</p>
+      </div>
+      <div class="step reveal">
+        <div class="nstep">02</div>
+        <div class="ico">🎛️</div>
+        <h4>Настройте фильтры</h4>
+        <p>Город, бюджет, режим дня, отношение к животным и курению — задайте свои критерии.</p>
+      </div>
+      <div class="step reveal">
+        <div class="nstep">03</div>
+        <div class="ico">💞</div>
+        <h4>Получите совпадения</h4>
+        <p>Алгоритм считает процент совместимости по образу жизни и показывает лучших первыми.</p>
+      </div>
+      <div class="step reveal">
+        <div class="nstep">04</div>
+        <div class="ico">💬</div>
+        <h4>Свяжитесь напрямую</h4>
+        <p>Понравился человек — напишите ему во встроенном чате и договоритесь о просмотре.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== POST / FORM ===== -->
+<section class="post" id="post">
+  <div class="wrap">
+    <div class="post-card reveal">
+      <div class="post-grid">
+        <div class="post-intro">
+          <span class="sec-kicker">Разместить анкету</span>
+          <h2>Расскажите о себе — и пусть сосед найдётся сам</h2>
+          <p>Заполните короткую анкету. Она появится в каталоге, и люди с подходящим образом жизни увидят вас в топе своих результатов.</p>
+          <div class="perks">
+            <div class="perk"><span class="ck"><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5L20 6" stroke="#7fd9a8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Бесплатное размещение анкеты</div>
+            <div class="perk"><span class="ck"><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5L20 6" stroke="#7fd9a8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Верификация профиля по документам</div>
+            <div class="perk"><span class="ck"><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5L20 6" stroke="#7fd9a8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Контакты скрыты до взаимного интереса</div>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <h3>Анкета соседа</h3>
+          <div class="frow">
+            <div class="field"><label>Имя</label><input id="fName" type="text" placeholder="Например, Алексей"></div>
+            <div class="field"><label>Возраст</label><input id="fAge" type="number" min="18" max="80" placeholder="25"></div>
+          </div>
+          <div class="frow">
+            <div class="field">
+              <label>Город</label>
+              <select id="fCity">
+                <option value="">Выберите город</option>
+                <option>Москва</option><option>Санкт-Петербург</option><option>Казань</option><option>Екатеринбург</option><option>Новосибирск</option>
+              </select>
+            </div>
+            <div class="field"><label>Район</label><input id="fDistrict" type="text" placeholder="Например, Центр"></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Бюджет, ₽/мес</label><input id="fBudget" type="number" step="1000" placeholder="35000"></div>
+            <div class="field">
+              <label>Пол</label>
+              <select id="fGender"><option value="m">Мужской</option><option value="f">Женский</option></select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="field">
+              <label>Режим дня</label>
+              <select id="fSchedule"><option value="early">Жаворонок</option><option value="night">Сова</option><option value="flexible">Гибкий</option></select>
+            </div>
+            <div class="field">
+              <label>Курение</label>
+              <select id="fSmoking"><option value="false">Не курю</option><option value="true">Курю</option></select>
+            </div>
+          </div>
+          <div class="field full" style="margin-bottom:14px">
+            <label>О себе</label>
+            <textarea id="fAbout" placeholder="Чем занимаетесь, что важно в быту, какого соседа ищете..."></textarea>
+          </div>
+          <button class="btn btn-dark btn-block" onclick="submitForm()">Опубликовать анкету</button>
+          <div class="form-note">Демонстрационная форма дипломного проекта — данные хранятся локально в браузере</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <div class="logo">
+          <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5" stroke="#241D17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9h14v-9" stroke="#241D17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="13" width="4" height="6" rx="1" stroke="#FBF6EE" stroke-width="2"/></svg></span>
+          Со<b style="color:var(--coral)">Сед</b>
+        </div>
+        <p>Сервис умного поиска соседей по комнате и квартире. Находите людей, с которыми комфортно жить.</p>
+      </div>
+      <div class="foot-col">
+        <h6>Сервис</h6>
+        <a href="#search">Поиск соседей</a>
+        <a href="#post">Разместить анкету</a>
+        <a href="#how">Как это работает</a>
+        <a href="#search">Города</a>
+      </div>
+      <div class="foot-col">
+        <h6>Безопасность</h6>
+        <a href="#">Верификация</a>
+        <a href="#">Правила сообщества</a>
+        <a href="#">Советы по аренде</a>
+        <a href="#">Поддержка</a>
+      </div>
+      <div class="foot-col">
+        <h6>Компания</h6>
+        <a href="#">О проекте</a>
+        <a href="#">Блог</a>
+        <a href="#">Контакты</a>
+        <a href="#">Вакансии</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <span>© 2026 СоСед. Все права защищены.</span>
+      <span class="dipl">★ Дипломный проект · Веб-сервис поиска соседей</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== MODAL ===== -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- ===== AUTH MODAL ===== -->
+<div class="overlay" id="authOverlay" onclick="if(event.target===this)closeAuth()">
+  <div class="modal auth-modal">
+    <button class="m-close" onclick="closeAuth()"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="#241D17" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <div class="auth-head">
+      <div class="auth-logo"><span style="width:30px;height:30px;border-radius:9px;background:var(--ink);display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9h14v-9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Со<b style="color:var(--coral)">Сед</b></div>
+      <div class="auth-tabs">
+        <button id="tabLogin" class="on" onclick="switchTab('login')">Вход</button>
+        <button id="tabReg" onclick="switchTab('reg')">Регистрация</button>
+      </div>
+    </div>
+    <div class="auth-pane" id="paneLogin">
+      <div class="field"><label>Электронная почта</label><input id="liEmail" type="email" placeholder="you@example.com"></div>
+      <div class="field"><label>Пароль</label><input id="liPass" type="password" placeholder="Пароль из письма"></div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()">Войти</button>
+    </div>
+    <div class="auth-pane" id="paneReg" style="display:none">
+      <div class="field"><label>Имя</label><input id="rgName" type="text" placeholder="Ваше имя"></div>
+      <div class="field"><label>Электронная почта</label><input id="rgEmail" type="email" placeholder="you@example.com"></div>
+      <div class="field"><label>Тип аккаунта</label>
+        <div class="seg role-seg"><button class="on" data-role="user" onclick="setRole('user',this)">Пользователь</button><button data-role="admin" onclick="setRole('admin',this)">Администратор</button></div>
+      </div>
+      <div class="field" id="adminCodeField" style="display:none"><label>Код администратора</label><input id="rgCode" type="text" placeholder="Секретный код"></div>
+      <button class="btn btn-dark btn-block" onclick="doRegister()">Зарегистрироваться</button>
+      <div class="auth-note">ð Пароль будет отправлен на указанную почту</div>
+      <div class="dev-pass" id="devPass" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADMIN MODAL ===== -->
+<div class="overlay" id="adminOverlay" onclick="if(event.target===this)closeAdmin()">
+  <div class="modal admin-modal" id="adminModal"></div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"><span class="em">✓</span><span id="toastMsg"></span></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
