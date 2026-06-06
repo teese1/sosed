@@ -2,10 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
-const fs      = require('fs');
 const crypto  = require('crypto');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
+const mysql   = require('mysql2/promise');
 
 const app        = express();
 const PORT       = process.env.PORT || 3000;
@@ -14,21 +14,27 @@ const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2026';
 
 app.use(cors());
 app.use(express.json());
-// Запрет кэширования: клиент всегда получает свежие данные API и свежий код
-app.use((req,res,next)=>{
-  if(req.path.startsWith('/api/')) res.set('Cache-Control','no-store');
-  else res.set('Cache-Control','no-cache');
-  next();
-});
+app.use((req,res,next)=>{ res.set('Cache-Control', req.path.startsWith('/api/')?'no-store':'no-cache'); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ---------- JSON «база данных» ---------- */
-const DATA_DIR      = path.join(__dirname, 'data');
-const USERS_FILE    = path.join(DATA_DIR, 'users.json');
-const LISTINGS_FILE = path.join(DATA_DIR, 'listings.json');
-const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
+/* ---------- Подключение к MySQL ----------
+   На Railway добавьте переменную DATABASE_URL = ${{ MySQL.MYSQL_URL }}.
+   Локально — используются переменные DB_* из .env (по умолчанию localhost). */
+const pool = mysql.createPool(
+  (process.env.DATABASE_URL || process.env.MYSQL_URL)
+    ? (process.env.DATABASE_URL || process.env.MYSQL_URL)
+    : {
+        host:     process.env.DB_HOST     || process.env.MYSQLHOST     || 'localhost',
+        port:     process.env.DB_PORT     || process.env.MYSQLPORT     || 3306,
+        user:     process.env.DB_USER     || process.env.MYSQLUSER     || 'root',
+        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        database: process.env.DB_NAME     || process.env.MYSQLDATABASE || 'sosed',
+        waitForConnections: true,
+        connectionLimit: 10
+      }
+);
 
-// 12 пользователей-владельцев анкет (почта и пароль видны админу)
+/* ---------- Сид-данные ---------- */
 const SEED_USERS = [
   {id:'u01',name:'Анна',    email:'anna@sosed.ru',     password:'anna2024',     role:'user'},
   {id:'u02',name:'Дмитрий', email:'dmitry@sosed.ru',   password:'dmitry2024',   role:'user'},
@@ -75,56 +81,71 @@ const SEED_LISTINGS = [
   {id:20,name:'Денис',age:30,gender:'m',occ:'IT-специалист',city:'Владивосток',district:'Ленинский',budget:38000,smoking:false,pets:'cat',cleanliness:'high',schedule:'night',guests:'rarely',noise:'quiet',looking:'flatmate',verified:true,base:88,moveIn:'12 августа',about:'Работаю в IT на удалёнке, сова. Есть кот. Тихий и чистоплотный. Ищу аккуратного соседа в просторную квартиру.'}
 ];
 
-// Версия демо-данных. При её изменении сид-данные пересоздаются заново
-// (это решает проблему «старых» данных на хостинге после обновления кода).
-const SEED_VERSION = '2026-06-04-v2';
-const META_FILE = path.join(DATA_DIR, 'meta.json');
+/* ---------- Создание таблиц и наполнение ---------- */
+async function initDb(){
+  await pool.query(`CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
+    password VARCHAR(255),
+    passwordHash VARCHAR(255) NOT NULL,
+    createdAt DATETIME NOT NULL
+  ) CHARACTER SET utf8mb4`);
 
-function buildSeedUsers(){
-  return SEED_USERS.map(u=>({
-    id:u.id, name:u.name, email:u.email, role:u.role,
-    password:u.password,                       // открытый пароль для админа
-    passwordHash:bcrypt.hashSync(u.password,10),
-    createdAt:new Date().toISOString()
-  }));
-}
-function buildSeedListings(){
-  return SEED_LISTINGS.map(l=>{
-    const owner = SEED_USERS.find(su=>su.name===l.name);
-    return {...l, ownerId:owner?owner.id:null, ownerEmail:owner?owner.email:null};
-  });
-}
+  await pool.query(`CREATE TABLE IF NOT EXISTS listings (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(255), age INT, gender VARCHAR(5), occ VARCHAR(255),
+    city VARCHAR(255), district VARCHAR(255), budget INT,
+    smoking TINYINT(1), pets VARCHAR(20), cleanliness VARCHAR(20),
+    schedule VARCHAR(20), guests VARCHAR(20), noise VARCHAR(20),
+    looking VARCHAR(20), verified TINYINT(1), base INT,
+    moveIn VARCHAR(255), about TEXT,
+    ownerId VARCHAR(64), ownerEmail VARCHAR(255)
+  ) CHARACTER SET utf8mb4`);
 
-function ensureData(){
-  if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
-  let meta={};
-  try{ meta=JSON.parse(fs.readFileSync(META_FILE,'utf8')); }catch{}
-  // Если версия данных не совпадает — пересоздаём демо-анкеты и пользователей
-  if(meta.seedVersion!==SEED_VERSION){
-    fs.writeFileSync(USERS_FILE,    JSON.stringify(buildSeedUsers(),null,2));
-    fs.writeFileSync(LISTINGS_FILE, JSON.stringify(buildSeedListings(),null,2));
-    if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
-    fs.writeFileSync(META_FILE, JSON.stringify({seedVersion:SEED_VERSION},null,2));
-    console.log('🔄 Демо-данные обновлены до версии', SEED_VERSION);
-    return;
+  await pool.query(`CREATE TABLE IF NOT EXISTS contacts (
+    id VARCHAR(64) PRIMARY KEY,
+    fromUserId VARCHAR(64), fromUserName VARCHAR(255),
+    toUserId VARCHAR(64), listingId VARCHAR(64),
+    listingName VARCHAR(255), listingCity VARCHAR(255),
+    status VARCHAR(20), contactInfo VARCHAR(500),
+    requesterSeen TINYINT(1) DEFAULT 0,
+    createdAt DATETIME, sharedAt DATETIME NULL
+  ) CHARACTER SET utf8mb4`);
+
+  // Наполняем пользователями, если таблица пуста
+  const [[uc]] = await pool.query('SELECT COUNT(*) AS c FROM users');
+  if(uc.c === 0){
+    for(const u of SEED_USERS){
+      await pool.query(
+        'INSERT INTO users (id,name,email,role,password,passwordHash,createdAt) VALUES (?,?,?,?,?,?,NOW())',
+        [u.id,u.name,u.email,u.role,u.password,bcrypt.hashSync(u.password,10)]
+      );
+    }
+    console.log('🌱 Добавлено пользователей:', SEED_USERS.length);
   }
-  if(!fs.existsSync(USERS_FILE))    fs.writeFileSync(USERS_FILE, JSON.stringify(buildSeedUsers(),null,2));
-  if(!fs.existsSync(CONTACTS_FILE)) fs.writeFileSync(CONTACTS_FILE,'[]');
-  if(!fs.existsSync(LISTINGS_FILE)) fs.writeFileSync(LISTINGS_FILE, JSON.stringify(buildSeedListings(),null,2));
+
+  // Наполняем анкетами, если таблица пуста
+  const [[lc]] = await pool.query('SELECT COUNT(*) AS c FROM listings');
+  if(lc.c === 0){
+    for(const l of SEED_LISTINGS){
+      const owner = SEED_USERS.find(s=>s.name===l.name);
+      await pool.query(
+        `INSERT INTO listings (id,name,age,gender,occ,city,district,budget,smoking,pets,cleanliness,schedule,guests,noise,looking,verified,base,moveIn,about,ownerId,ownerEmail)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [l.id,l.name,l.age,l.gender,l.occ,l.city,l.district,l.budget,l.smoking?1:0,l.pets,l.cleanliness,l.schedule,l.guests,l.noise,l.looking,l.verified?1:0,l.base,l.moveIn,l.about, owner?owner.id:null, owner?owner.email:null]
+      );
+    }
+    console.log('🌱 Добавлено анкет:', SEED_LISTINGS.length);
+  }
 }
-const readUsers    = ()=>JSON.parse(fs.readFileSync(USERS_FILE,'utf8'));
-const writeUsers   = d=>fs.writeFileSync(USERS_FILE,JSON.stringify(d,null,2));
-const readListings = ()=>JSON.parse(fs.readFileSync(LISTINGS_FILE,'utf8'));
-const writeListings= d=>fs.writeFileSync(LISTINGS_FILE,JSON.stringify(d,null,2));
-const readContacts = ()=>JSON.parse(fs.readFileSync(CONTACTS_FILE,'utf8'));
-const writeContacts= d=>fs.writeFileSync(CONTACTS_FILE,JSON.stringify(d,null,2));
-ensureData();
 
 /* ---------- Утилиты ---------- */
 const isEmail = e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-// Для входа/себя — без пароля. Для админа — с почтой и паролем.
-const publicUser    = u=>({id:u.id,name:u.name,email:u.email,role:u.role,createdAt:u.createdAt});
-const adminUserView = u=>({id:u.id,name:u.name,email:u.email,role:u.role,password:u.password||'—',createdAt:u.createdAt});
+const publicUser = u=>({id:u.id,name:u.name,email:u.email,role:u.role,createdAt:u.createdAt});
+const normListing = r=>({...r, smoking:!!r.smoking, verified:!!r.verified});
+const normContact = r=>({...r, requesterSeen:!!r.requesterSeen});
 
 function auth(req,res,next){
   const h=req.headers.authorization||'';
@@ -139,168 +160,178 @@ function adminOnly(req,res,next){
 }
 
 /* ============ АВТОРИЗАЦИЯ ============ */
-
-app.post('/api/register',async(req,res)=>{
+app.post('/api/register', async (req,res)=>{
   try{
     let{name,email,password,role,adminCode}=req.body||{};
-    name=(name||'').trim();
-    email=(email||'').trim().toLowerCase();
-    role=role==='admin'?'admin':'user';
+    name=(name||'').trim(); email=(email||'').trim().toLowerCase(); role=role==='admin'?'admin':'user';
     if(!name||!isEmail(email)) return res.status(400).json({error:'Укажите имя и корректную почту'});
     if(!password||password.length<6) return res.status(400).json({error:'Пароль должен быть не менее 6 символов'});
     if(role==='admin'&&adminCode!==ADMIN_CODE) return res.status(403).json({error:'Неверный код администратора'});
-    const users=readUsers();
-    if(users.find(u=>u.email===email)) return res.status(409).json({error:'Эта почта уже зарегистрирована'});
-    const user={
-      id:crypto.randomUUID(),name,email,role,
-      password,                                  // открытый пароль для админа
-      passwordHash:bcrypt.hashSync(password,10),
-      createdAt:new Date().toISOString()
-    };
-    users.push(user);
-    writeUsers(users);
+    const [ex] = await pool.query('SELECT id FROM users WHERE email=?',[email]);
+    if(ex.length) return res.status(409).json({error:'Эта почта уже зарегистрирована'});
+    const id=crypto.randomUUID();
+    await pool.query('INSERT INTO users (id,name,email,role,password,passwordHash,createdAt) VALUES (?,?,?,?,?,?,NOW())',
+      [id,name,email,role,password,bcrypt.hashSync(password,10)]);
     res.json({ok:true,role,message:'Регистрация успешна'});
   }catch(e){console.error(e);res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.post('/api/login',(req,res)=>{
-  let{email,password}=req.body||{};
-  email=(email||'').trim().toLowerCase();
-  const users=readUsers();
-  const user=users.find(u=>u.email===email);
-  if(!user||!bcrypt.compareSync(password||'',user.passwordHash))
-    return res.status(401).json({error:'Неверная почта или пароль'});
-  const token=jwt.sign({id:user.id,name:user.name,email:user.email,role:user.role},JWT_SECRET,{expiresIn:'7d'});
-  res.json({token,user:publicUser(user)});
+app.post('/api/login', async (req,res)=>{
+  try{
+    let{email,password}=req.body||{};
+    email=(email||'').trim().toLowerCase();
+    const [rows] = await pool.query('SELECT * FROM users WHERE email=?',[email]);
+    const user=rows[0];
+    if(!user||!bcrypt.compareSync(password||'',user.passwordHash))
+      return res.status(401).json({error:'Неверная почта или пароль'});
+    const token=jwt.sign({id:user.id,name:user.name,email:user.email,role:user.role},JWT_SECRET,{expiresIn:'7d'});
+    res.json({token,user:publicUser(user)});
+  }catch(e){console.error(e);res.status(500).json({error:'Ошибка сервера'});}
 });
 
 app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
 
-/* ============ СТАТИСТИКА (для главной) ============ */
-app.get('/api/stats',(req,res)=>{
-  const listings=readListings();
-  const contacts=readContacts();
-  const cities=new Set(listings.map(l=>l.city));
-  const matches=contacts.filter(c=>c.status==='shared').length;
-  res.json({listings:listings.length, cities:cities.size, matches});
+/* ============ СТАТИСТИКА ============ */
+app.get('/api/stats', async (req,res)=>{
+  try{
+    const [[a]] = await pool.query('SELECT COUNT(*) AS listings FROM listings');
+    const [[b]] = await pool.query('SELECT COUNT(DISTINCT city) AS cities FROM listings');
+    const [[c]] = await pool.query("SELECT COUNT(*) AS matches FROM contacts WHERE status='shared'");
+    res.json({listings:a.listings, cities:b.cities, matches:c.matches});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
 /* ============ АНКЕТЫ ============ */
-
-app.get('/api/listings',(req,res)=>res.json(readListings()));
-
-app.post('/api/listings',auth,(req,res)=>{
-  const b=req.body||{};
-  if(!b.name||!b.age||!b.city||!b.budget) return res.status(400).json({error:'Заполните имя, возраст, город и бюджет'});
-  const listings=readListings();
-  const listing={
-    id:Date.now(),name:String(b.name).trim(),age:Number(b.age),
-    gender:b.gender==='f'?'f':'m',occ:b.occ||'Пользователь',
-    city:b.city,district:(b.district||'Центр').trim()||'Центр',
-    budget:Number(b.budget),smoking:!!b.smoking,pets:b.pets||'none',
-    cleanliness:b.cleanliness||'medium',schedule:b.schedule||'flexible',
-    guests:b.guests||'sometimes',noise:b.noise||'moderate',
-    looking:b.looking||'flatmate',verified:false,base:82,
-    moveIn:b.moveIn||'сейчас',
-    about:(b.about||'').trim()||'Анкета создана пользователем.',
-    ownerId:req.user.id,ownerEmail:req.user.email
-  };
-  listings.unshift(listing);
-  writeListings(listings);
-  res.json({ok:true,listing});
+app.get('/api/listings', async (req,res)=>{
+  try{
+    const [rows] = await pool.query('SELECT * FROM listings ORDER BY id DESC');
+    res.json(rows.map(normListing));
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.delete('/api/listings/:id',auth,adminOnly,(req,res)=>{
-  const listings=readListings();
-  const next=listings.filter(l=>String(l.id)!==String(req.params.id));
-  if(next.length===listings.length) return res.status(404).json({error:'Анкета не найдена'});
-  writeListings(next);
-  res.json({ok:true});
+app.post('/api/listings', auth, async (req,res)=>{
+  try{
+    const b=req.body||{};
+    if(!b.name||!b.age||!b.city||!b.budget) return res.status(400).json({error:'Заполните имя, возраст, город и бюджет'});
+    const listing={
+      id:Date.now(), name:String(b.name).trim(), age:Number(b.age),
+      gender:b.gender==='f'?'f':'m', occ:b.occ||'Пользователь',
+      city:b.city, district:(b.district||'Центр').trim()||'Центр', budget:Number(b.budget),
+      smoking:!!b.smoking, pets:b.pets||'none', cleanliness:b.cleanliness||'medium',
+      schedule:b.schedule||'flexible', guests:b.guests||'sometimes', noise:b.noise||'moderate',
+      looking:b.looking||'flatmate', verified:false, base:82,
+      moveIn:b.moveIn||'сейчас', about:(b.about||'').trim()||'Анкета создана пользователем.',
+      ownerId:req.user.id, ownerEmail:req.user.email
+    };
+    await pool.query(
+      `INSERT INTO listings (id,name,age,gender,occ,city,district,budget,smoking,pets,cleanliness,schedule,guests,noise,looking,verified,base,moveIn,about,ownerId,ownerEmail)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [listing.id,listing.name,listing.age,listing.gender,listing.occ,listing.city,listing.district,listing.budget,listing.smoking?1:0,listing.pets,listing.cleanliness,listing.schedule,listing.guests,listing.noise,listing.looking,0,listing.base,listing.moveIn,listing.about,listing.ownerId,listing.ownerEmail]
+    );
+    res.json({ok:true,listing});
+  }catch(e){console.error(e);res.status(500).json({error:'Ошибка сервера'});}
+});
+
+app.delete('/api/listings/:id', auth, adminOnly, async (req,res)=>{
+  try{
+    const [r] = await pool.query('DELETE FROM listings WHERE id=?',[req.params.id]);
+    if(r.affectedRows===0) return res.status(404).json({error:'Анкета не найдена'});
+    res.json({ok:true});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
 /* ============ ПОЛЬЗОВАТЕЛИ (админ) ============ */
+app.get('/api/users', auth, adminOnly, async (req,res)=>{
+  try{
+    const [rows] = await pool.query('SELECT id,name,email,role,password,createdAt FROM users ORDER BY createdAt');
+    res.json(rows.map(u=>({...u, password:u.password||'—'})));
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
+});
 
-app.get('/api/users',auth,adminOnly,(req,res)=>res.json(readUsers().map(adminUserView)));
-
-app.delete('/api/users/:id',auth,adminOnly,(req,res)=>{
-  if(req.params.id===req.user.id) return res.status(400).json({error:'Нельзя удалить собственный аккаунт'});
-  const users=readUsers();
-  const next=users.filter(u=>u.id!==req.params.id);
-  if(next.length===users.length) return res.status(404).json({error:'Пользователь не найден'});
-  writeUsers(next);
-  res.json({ok:true});
+app.delete('/api/users/:id', auth, adminOnly, async (req,res)=>{
+  try{
+    if(req.params.id===req.user.id) return res.status(400).json({error:'Нельзя удалить собственный аккаунт'});
+    const [r] = await pool.query('DELETE FROM users WHERE id=?',[req.params.id]);
+    if(r.affectedRows===0) return res.status(404).json({error:'Пользователь не найден'});
+    res.json({ok:true});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
 /* ============ ЗАПРОСЫ КОНТАКТОВ ============ */
-
-app.post('/api/contacts/request',auth,(req,res)=>{
-  const{listingId}=req.body||{};
-  const listings=readListings();
-  const listing=listings.find(l=>String(l.id)===String(listingId));
-  if(!listing) return res.status(404).json({error:'Анкета не найдена'});
-  if(!listing.ownerId) return res.status(400).json({error:'У этой анкеты нет владельца'});
-  if(listing.ownerId===req.user.id) return res.status(400).json({error:'Это ваша собственная анкета'});
-  const contacts=readContacts();
-  const existing=contacts.find(c=>c.fromUserId===req.user.id&&String(c.listingId)===String(listingId));
-  if(existing) return res.json({ok:true,request:existing,alreadyExists:true});
-  const request={
-    id:crypto.randomUUID(),
-    fromUserId:req.user.id,fromUserName:req.user.name,
-    toUserId:listing.ownerId,
-    listingId:String(listing.id),listingName:listing.name,listingCity:listing.city,
-    status:'pending',contactInfo:null,requesterSeen:false,
-    createdAt:new Date().toISOString()
-  };
-  contacts.push(request);
-  writeContacts(contacts);
-  res.json({ok:true,request});
+app.post('/api/contacts/request', auth, async (req,res)=>{
+  try{
+    const{listingId}=req.body||{};
+    const [lr] = await pool.query('SELECT * FROM listings WHERE id=?',[listingId]);
+    const listing=lr[0];
+    if(!listing) return res.status(404).json({error:'Анкета не найдена'});
+    if(!listing.ownerId) return res.status(400).json({error:'У этой анкеты нет владельца'});
+    if(listing.ownerId===req.user.id) return res.status(400).json({error:'Это ваша собственная анкета'});
+    const [ex] = await pool.query('SELECT * FROM contacts WHERE fromUserId=? AND listingId=?',[req.user.id,String(listing.id)]);
+    if(ex.length) return res.json({ok:true,request:normContact(ex[0]),alreadyExists:true});
+    const id=crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO contacts (id,fromUserId,fromUserName,toUserId,listingId,listingName,listingCity,status,contactInfo,requesterSeen,createdAt)
+       VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`,
+      [id,req.user.id,req.user.name,listing.ownerId,String(listing.id),listing.name,listing.city,'pending',null,0]
+    );
+    const [nr] = await pool.query('SELECT * FROM contacts WHERE id=?',[id]);
+    res.json({ok:true,request:normContact(nr[0])});
+  }catch(e){console.error(e);res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.get('/api/contacts/notifications',auth,(req,res)=>{
-  const contacts=readContacts();
-  const me=req.user.id;
-  const incoming=contacts.filter(c=>c.toUserId===me);
-  const outgoing=contacts.filter(c=>c.fromUserId===me);
-  const badgeCount=
-    incoming.filter(c=>c.status==='pending').length+
-    outgoing.filter(c=>c.status==='shared'&&!c.requesterSeen).length;
-  res.json({incoming,outgoing,badgeCount});
+app.get('/api/contacts/notifications', auth, async (req,res)=>{
+  try{
+    const me=req.user.id;
+    const [inc] = await pool.query('SELECT * FROM contacts WHERE toUserId=? ORDER BY createdAt DESC',[me]);
+    const [out] = await pool.query('SELECT * FROM contacts WHERE fromUserId=? ORDER BY createdAt DESC',[me]);
+    const incoming=inc.map(normContact), outgoing=out.map(normContact);
+    const badgeCount = incoming.filter(c=>c.status==='pending').length + outgoing.filter(c=>c.status==='shared'&&!c.requesterSeen).length;
+    res.json({incoming,outgoing,badgeCount});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.post('/api/contacts/:id/share',auth,(req,res)=>{
-  const{contactInfo}=req.body||{};
-  if(!contactInfo||!String(contactInfo).trim()) return res.status(400).json({error:'Введите контактные данные'});
-  const contacts=readContacts();
-  const r=contacts.find(c=>c.id===req.params.id);
-  if(!r) return res.status(404).json({error:'Запрос не найден'});
-  if(r.toUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
-  r.status='shared';
-  r.contactInfo=String(contactInfo).trim();
-  r.sharedAt=new Date().toISOString();
-  writeContacts(contacts);
-  res.json({ok:true});
+app.post('/api/contacts/:id/share', auth, async (req,res)=>{
+  try{
+    const{contactInfo}=req.body||{};
+    if(!contactInfo||!String(contactInfo).trim()) return res.status(400).json({error:'Введите контактные данные'});
+    const [cr] = await pool.query('SELECT * FROM contacts WHERE id=?',[req.params.id]);
+    const c=cr[0];
+    if(!c) return res.status(404).json({error:'Запрос не найден'});
+    if(c.toUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
+    await pool.query("UPDATE contacts SET status='shared', contactInfo=?, sharedAt=NOW() WHERE id=?",[String(contactInfo).trim(),req.params.id]);
+    res.json({ok:true});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.post('/api/contacts/:id/seen',auth,(req,res)=>{
-  const contacts=readContacts();
-  const r=contacts.find(c=>c.id===req.params.id);
-  if(!r) return res.status(404).json({error:'Запрос не найден'});
-  if(r.fromUserId===req.user.id) r.requesterSeen=true;
-  writeContacts(contacts);
-  res.json({ok:true});
+app.post('/api/contacts/:id/seen', auth, async (req,res)=>{
+  try{
+    await pool.query('UPDATE contacts SET requesterSeen=1 WHERE id=? AND fromUserId=?',[req.params.id,req.user.id]);
+    res.json({ok:true});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
-app.delete('/api/contacts/:id',auth,(req,res)=>{
-  const contacts=readContacts();
-  const r=contacts.find(c=>c.id===req.params.id);
-  if(!r) return res.status(404).json({error:'Запрос не найден'});
-  if(r.toUserId!==req.user.id&&r.fromUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
-  writeContacts(contacts.filter(c=>c.id!==req.params.id));
-  res.json({ok:true});
+app.delete('/api/contacts/:id', auth, async (req,res)=>{
+  try{
+    const [cr] = await pool.query('SELECT * FROM contacts WHERE id=?',[req.params.id]);
+    const c=cr[0];
+    if(!c) return res.status(404).json({error:'Запрос не найден'});
+    if(c.toUserId!==req.user.id && c.fromUserId!==req.user.id) return res.status(403).json({error:'Нет доступа'});
+    await pool.query('DELETE FROM contacts WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  }catch(e){res.status(500).json({error:'Ошибка сервера'});}
 });
 
 /* ---------- Запуск ---------- */
-app.listen(PORT,()=>{
-  console.log(`\n🏠 СоСед запущен! http://localhost:${PORT}`);
-  console.log(`   Код админа: ${ADMIN_CODE}\n`);
-});
+initDb()
+  .then(()=>{
+    app.listen(PORT,()=>{
+      console.log(`\n🏠 СоСед запущен! http://localhost:${PORT}`);
+      console.log(`   База данных: MySQL`);
+      console.log(`   Код админа: ${ADMIN_CODE}\n`);
+    });
+  })
+  .catch(err=>{
+    console.error('❌ Не удалось подключиться к базе данных MySQL:', err.message);
+    console.error('   Проверьте переменные подключения (DATABASE_URL или DB_HOST/DB_USER/...)');
+    process.exit(1);
+  });
